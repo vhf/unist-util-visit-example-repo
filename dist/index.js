@@ -26,6 +26,7 @@ function convert(node, index, parent) {
     type: 'footnoteReference',
     identifier: id
   };
+  console.log(JSON.stringify({ parent: parent, index: index }));
   parent.children.splice(index, 1, footnoteReference, footnoteDefinition);
 }
 
