@@ -1,88 +1,68 @@
-import {readdirSync as directory, readFileSync as file} from 'fs'
-import {join} from 'path'
+import dedent from 'dedent'
 import unified from 'unified'
+import inspect from 'unist-util-inspect'
 import reParse from 'remark-parse'
 import stringify from 'rehype-stringify'
 import remark2rehype from 'remark-rehype'
 
-const base = join(__dirname, 'fixtures')
-const specs = directory(base).reduce((tests, contents) => {
-  const parts = contents.split('.')
-  if (!tests[parts[0]]) {
-    tests[parts[0]] = {}
-  }
-  tests[parts[0]][parts[1]] = file(join(base, contents), 'utf-8')
-  return tests
-}, {})
+const fixture = dedent`
+  1 [^alpha bravo one]
+  2 [^alpha bravo two]
+  3 [^alpha bravo third]
+  4 [^w]
+  4 [^w]
+  5 [^alpha bravo fourth]
 
+  [^w]: foo
+`
 
-const configs = [
-  {
-    gfm: true,
-    commonmark: false,
-    footnotes: true,
-  },
-  {
-    gfm: false,
-    commonmark: false,
-    footnotes: true,
-  },
-  {
-    gfm: false,
-    commonmark: true,
-    footnotes: true,
-  },
-  {
-    gfm: true,
-    commonmark: true,
-    footnotes: true,
-  },
-]
+const expected = dedent`
+  <p>1 <sup id="fnref-1"><a href="#fn-1" class="footnote-ref">1</a></sup>
+  2 <sup id="fnref-2"><a href="#fn-2" class="footnote-ref">2</a></sup>
+  3 <sup id="fnref-3"><a href="#fn-3" class="footnote-ref">3</a></sup>
+  4 <sup id="fnref-5"><a href="#fn-5" class="footnote-ref">5</a></sup>
+  4 <sup id="fnref-5"><a href="#fn-5" class="footnote-ref">5</a></sup>
+  5 <sup id="fnref-4"><a href="#fn-4" class="footnote-ref">4</a></sup></p>
+  <div class="footnotes">
+  <hr>
+  <ol>
+  <li id="fn-1">
+  alpha bravo one
+  <a href="#fnref-1" class="footnote-backref">↩</a>
+  </li>
+  <li id="fn-2">
+  alpha bravo two
+  <a href="#fnref-2" class="footnote-backref">↩</a>
+  </li>
+  <li id="fn-3">
+  alpha bravo third
+  <a href="#fnref-3" class="footnote-backref">↩</a>
+  </li>
+  <li id="fn-4">
+  alpha bravo fourth
+  <a href="#fnref-4" class="footnote-backref">↩</a>
+  </li>
+  <li id="fn-5">
+  <p>foo</p>
+  <a href="#fnref-5" class="footnote-backref">↩</a>
+  </li>
+  </ol>
+  </div>
+`
 
-configs.forEach(config => {
-  describe(JSON.stringify(config), () => {
-    test('footnotes', () => {
-      const {contents} = unified()
-        .use(reParse, config)
-        .use(require('../src'))
-        .use(remark2rehype)
-        .use(stringify)
-        .processSync(specs['footnotes'].fixture)
+test('regression-2', () => {
+  const {contents} = unified()
+    .use(reParse, {gfm: true, commonmark: false, footnotes: true})
+    .use(require('../src'))
+    .use(remark2rehype)
+    .use(stringify)
+    .processSync(fixture)
 
-      expect(contents).toMatchSnapshot()
-    })
-
-    test('regression-1', () => {
-      const {contents} = unified()
-        .use(reParse, config)
-        .use(require('../src'))
-        .use(remark2rehype)
-        .use(stringify)
-        .processSync(specs['regression-1'].fixture)
-
-      expect(contents).toMatchSnapshot()
-    })
-
-    test('regression-2', () => {
-      const {contents} = unified()
-        .use(reParse, config)
-        .use(require('../src'))
-        .use(remark2rehype)
-        .use(stringify)
-        .processSync(specs['regression-2'].fixture)
-
-      expect(contents).toMatchSnapshot()
-    })
-
-    test('footnote-split', () => {
-      const {contents} = unified()
-        .use(reParse, config)
-        .use(require('../src'))
-        .use(remark2rehype)
-        .use(stringify)
-        .processSync(specs['footnote-split'].fixture)
-
-      expect(contents).toMatchSnapshot()
-    })
-  })
+  expect(contents.trim()).toBe(expected)
 })
+
+const tree = unified()
+  .use(reParse, {gfm: true, commonmark: false, footnotes: true})
+  .parse(fixture)
+
+console.log(inspect(tree))
